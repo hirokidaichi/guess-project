@@ -1,14 +1,11 @@
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
-import japanize_matplotlib  # 自動的に日本語フォントを設定
+import japanize_matplotlib  # noqa 自動的に日本語フォントを設定
 
-
-from scipy.stats import gaussian_kde
 
 
 def main():
-
     st.title("アジャイルプロジェクト予測")
 
     st.write("ベロシティとスコープクリープから終了時期をモンテカルロシミュレーションします")
@@ -19,10 +16,11 @@ def main():
 
     st.header("チーム")
     velocity_mean = st.number_input("ベロシティの平均値", min_value=10.0, max_value=200.0, value=30.0, step=10.0)
+
     velocity_std_dev = st.number_input("ベロシティの標準偏差", min_value=1.0, max_value=50.0, value=10.0, step=1.0)
 
     st.header("スコープクリープ")
-    scope_creep_mean = st.number_input("スコープクリープによる追加ストーリーの増加率 (%/sprint)", min_value=0.0, max_value=10.0, value=1.0, step=0.1)
+    scope_creep_mean = st.number_input("スコープクリープによる追加ストーリーの増加率 (%/sprint)", min_value=0.0, max_value=10.0, value=2.0, step=1.0)
     scope_creep_std_dev = st.number_input("スコープクリープの標準偏差 (%/sprint)", min_value=0.0, max_value=5.0, value=1.0, step=0.1)
 
     st.header("設定")
@@ -58,8 +56,8 @@ def main():
         ax.axvline(value, color=colors[perc], linestyle="-", linewidth=1.5, label=f"{perc}%tile: {value:.1f}")
 
     ax.set_title("プロジェクト終了シミュレーション")
-    ax.set_xlabel("Number of Sprints")
-    ax.set_ylabel("Density")
+    ax.set_xlabel("スプリント数")
+    ax.set_ylabel("確率密度")
     ax.legend()
 
     # Display plot in Streamlit
