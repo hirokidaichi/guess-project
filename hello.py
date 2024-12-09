@@ -3,16 +3,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import japanize_matplotlib  # 自動的に日本語フォントを設定
 
+
 from scipy.stats import gaussian_kde
 
 
 def main():
-    st.set_page_config(
-        page_title="サンプルアプリ",
-        page_icon=":rocket:",
-        layout="wide",
-        initial_sidebar_state="expanded",
-    )
+
     st.title("アジャイルプロジェクト予測")
 
     st.write("ベロシティとスコープクリープから終了時期をモンテカルロシミュレーションします")
