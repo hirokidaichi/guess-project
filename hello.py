@@ -6,7 +6,6 @@ import japanize_matplotlib  # 自動的に日本語フォントを設定
 from scipy.stats import gaussian_kde
 
 
-
 def main():
     st.set_page_config(
         page_title="サンプルアプリ",
