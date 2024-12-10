@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib_fontja # noqa 日本語フォント設定
+import scipy.stats as stats
 
 # Percentile 型のデータを作成
 class Percentile:
@@ -20,6 +21,67 @@ class Percentile:
 
 
 
+def create_velocity_sampler(data):
+    """
+    Generate random samples for the true mean based on a t-distribution.
+
+    Parameters:
+    - data: list or array-like, the sample data
+    - num_samples: int, number of random samples to generate (default: 1000)
+
+    Returns:
+    - random_samples: numpy array of sampled true means
+    """
+    
+    data = np.array(data)
+    mean = np.mean(data)
+    # std = mean * 0.8
+    # pre = np.random.normal(mean, std, 10)
+    data = np.append([mean*0.5,mean*1.5],data)
+    n = len(data)
+    mean = np.mean(data)
+    std = np.std(data, ddof=1)
+    sem = std / np.sqrt(n)
+    df = n - 1
+    t_dist = stats.t(df)
+    def sampler(num_samples=1000):
+        return  mean + sem * t_dist.rvs(size=num_samples)
+    return sampler
+
+
+def guess_velocity_posterior(data):
+    """
+    Generate the posterior distribution of the true mean using Bayes' theorem.
+
+    Parameters:
+    - data: list or array-like, the observed sample data
+    - prior_mean: float, the mean of the prior distribution
+    - prior_std: float, the standard deviation of the prior distribution
+    - num_samples: int, number of random samples to generate (default: 1000)
+
+    Returns:
+    - posterior_samples: numpy array of sampled posterior true means
+    """
+    
+    data = np.array(data)
+    n = len(data)
+    prior_mean = np.mean(data)
+    prior_std = prior_mean
+    sample_mean = np.mean(data)
+    sample_std = np.std(data, ddof=1)
+    sem = sample_std / np.sqrt(n)
+    
+    # Update posterior parameters
+    posterior_variance = 1 / (1 / prior_std**2 + n / sem**2)
+    posterior_mean = posterior_variance * (prior_mean / prior_std**2 + n * sample_mean / sem**2)
+    posterior_std = np.sqrt(posterior_variance)
+    st.write(f"post mean: {posterior_mean:.2f}, Post std: {posterior_std:.2f}")
+    def velocity_sampler(num_samples=1000):
+        return np.random.normal(posterior_mean, posterior_std, num_samples)
+    return velocity_sampler
+
+
+
 def main():
     st.title("アジャイルプロジェクト予測")
 
@@ -27,16 +89,30 @@ def main():
 
     # シミュレーションパラメータ
     st.header("ストーリーポイント")
-    story_point = st.slider("累計ストーリーポイント", min_value=100, max_value=500, value=200, step=10)
+    story_point = st.slider("累計ストーリーポイント", min_value=100, max_value=500, value=300, step=10)
 
     st.header("チーム")
-    velocity_mean = st.number_input("ベロシティの平均値", min_value=10.0, max_value=200.0, value=30.0, step=10.0)
+    st.write("直近のベロシティをカンマ区切りで入力してください。")
+    st.write("入力件数が安定して増える毎にベロシティの安定度が上がります。")
+    # 直近のベロシティをカンマ区切りで入力
+    velocities = st.text_input("直近のベロシティ", "50,55")
+    try:
+        velocity_list = [int(v) for v in velocities.split(",")]
+        if len(velocity_list) < 1:
+            st.error("ベロシティは1回以上のデータが必要です。")
+            return 
+        if any(v < 0 for v in velocity_list):
+            st.error("ベロシティは0以上でなければなりません。")
+            return 
+    except ValueError:
+        st.error("ベロシティはカンマ区切りの整数で入力してください。")
+        return
 
-    velocity_std_dev = st.number_input("ベロシティの標準偏差", min_value=1.0, max_value=50.0, value=10.0, step=1.0)
-
+    velocity_sampler = create_velocity_sampler(velocity_list)
+    
     st.header("スコープクリープ")
     st.markdown("スコープクリープとは、追加のストーリーポイントがスプリントごとにどれだけ増加するかを表します。")
-    scope_creep_mean = st.number_input("スコープクリープによる追加ストーリーの増加率 (%/sprint)", min_value=0.0, max_value=5.0, value=2.0, step=1.0)
+    scope_creep_mean = st.number_input("スコープクリープによる追加ストーリーの増加率 (%/sprint)", min_value=0.0, max_value=10.0, value=2.0, step=1.0)
     scope_creep_std_dev = st.number_input("スコープクリープの標準偏差 (%/sprint)", min_value=0.0, max_value=5.0, value=1.0, step=0.1)
 
     st.header("設定")
@@ -56,8 +132,7 @@ def main():
 
     simulation_results = monte_carlo_simulation(
         story_point=story_point,
-        velocity_mean=velocity_mean,
-        velocity_std_dev=velocity_std_dev,
+        velocity_sampler=velocity_sampler,
         scope_creep_mean=scope_creep_mean,
         scope_creep_std_dev=scope_creep_std_dev,
         num_simulations=num_simulations,
@@ -69,11 +144,13 @@ def main():
 
     deadlines = [median, commitment, business_target, safety]
 
-    sprint_max = max(int(median.sprints)* 3,safety.sprints * 1.1)
+    sprint_max = max(median.sprints * 3,safety.sprints* 1.1 )
+    sprint_min = 0
 
     # Plot histogram and smooth curve
     fig, ax = plt.subplots()
-    ax.set_xlim(0, sprint_max)
+    ax.set_xlim(sprint_min, sprint_max)
+
     ax.hist(simulation_results, bins=500, range=(0, sprint_max), density=True, alpha=0.3, color='blue', edgecolor='white', label='見積り')
 
     for perc in deadlines:
@@ -86,10 +163,10 @@ def main():
         finish_rate = np.searchsorted(np.sort(simulation_results), sprints) / len(simulation_results) * 100
         ax.axvline(sprints, color="black", linestyle="--", linewidth=1.5, label=f"終了日予定 ({sprints:.1f}スプリント 終了確率{finish_rate:.1f}%)")
     
-    ax.set_title("プロジェクト終了シミュレーション")
+    ax.set_title("スプリント数の確率分布")
     ax.set_xlabel("スプリント数")
     ax.set_ylabel("確率密度")
-    ax.legend(facecolor='white', framealpha=1)
+    ax.legend(facecolor='white', framealpha=1, loc='upper right', fontsize='small')
 
     # Display plot in Streamlit
     st.pyplot(fig)
@@ -119,8 +196,7 @@ def main():
 
 def monte_carlo_simulation(
     story_point: int,
-    velocity_mean: float,
-    velocity_std_dev: float,
+    velocity_sampler : callable,
     scope_creep_mean: float,
     scope_creep_std_dev: float,
     num_simulations: int
@@ -145,15 +221,14 @@ def monte_carlo_simulation(
     # Array to store results
     simulation_results = []
 
-    # Run simulations
     for _ in range(num_simulations):
         total_tasks = float(story_point)
-        velocity_per_sprint = max(0, np.random.normal(velocity_mean, velocity_std_dev))
-        sprints = 0
-
+        velocity_per_sprint = max(0, velocity_sampler(1)[0])
+        sprints = 0.0
         while total_tasks > 0:
-            if sprints > 200:
+            if sprints > 300:
                 # Limit the number of sprints to prevent infinite loops
+                #print("Exceeded 300 sprints, breaking loop.")
                 break
             if total_tasks <= velocity_per_sprint:
                 # Last sprint - calculate partial sprint
@@ -161,10 +236,8 @@ def monte_carlo_simulation(
                 break
             else:
                 sprints += 1
-                # Apply scope creep
-                creep_rate = np.random.normal(scope_creep_mean / 100, scope_creep_std_dev / 100)
-                total_tasks += total_tasks * creep_rate
-                # Deduct velocity
+                creep_rate = np.random.normal(1+scope_creep_mean / 100, scope_creep_std_dev / 100)
+                total_tasks = total_tasks * creep_rate
                 total_tasks -= velocity_per_sprint
 
         simulation_results.append(sprints)
