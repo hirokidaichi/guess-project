@@ -4,6 +4,19 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib_fontja # noqa 日本語フォント設定
 
+# Percentile 型のデータを作成
+class Percentile:
+    def __init__(self, color, result, percentile, name,start_date,sprint_duration):
+        self.start_date = start_date
+        self.color = color
+        self.sprints = np.percentile(result, percentile)
+        self.percentile = percentile
+        self.name = name
+        self.sprint_duration = sprint_duration
+
+    def finish_date(self ):
+        return self.start_date + pd.DateOffset(days=self.percentile * self.sprint_duration)
+
 
 
 
@@ -30,7 +43,13 @@ def main():
     # スプリント期間が何日か。
     sprint_duration = st.number_input("スプリント期間 (日)", min_value=1, max_value=50, value=14, step=1)   
     # 開始日はいつか。デフォルトは今日
-    start_date = st.date_input("開始日", value=pd.to_datetime('today'), min_value=None, max_value=None)    
+    start_date = st.date_input("開始日", value=pd.to_datetime('today'), min_value=None, max_value=None)
+    # 終了したい日付を指定する
+    end_date = st.date_input("終了日（終了を予定している日付）", 
+        value=None, 
+        min_value=start_date+pd.DateOffset(days=1), 
+        max_value=start_date+pd.DateOffset(years=2))
+
     num_simulations = st.number_input("シミュレーション回数", min_value=2000, max_value=5000, value=3000, step=100)
 
     # 設定値の確認
@@ -43,25 +62,30 @@ def main():
         scope_creep_std_dev=scope_creep_std_dev,
         num_simulations=num_simulations,
     )
-    percentiles = np.percentile(simulation_results, [50, 60, 80, 90])
-    percentiles_names = {
-        50: {"color": "red", "name": "中央値"},
-        60: {"color": "orange", "name": "コミットメットライン(60%tile)"},
-        80: {"color": "blue", "name": "ビジネスターゲットライン(80%tile)"},
-        90: {"color": "green", "name": "安全ライン(90%tile)"}
-    }
-    # Calculate range for x-axis
-    mean = np.percentile(simulation_results, 50)
-    max = int(mean*3)
+    median = Percentile("red", simulation_results, 50, "中央値",start_date, sprint_duration)
+    commitment = Percentile("green", simulation_results, 60, "コミットメットライン",start_date, sprint_duration)
+    business_target = Percentile("orange", simulation_results, 80, "ビジネスターゲットライン",start_date, sprint_duration)
+    safety = Percentile("blue", simulation_results, 90, "安全ライン",start_date, sprint_duration)
+
+    deadlines = [median, commitment, business_target, safety]
+
+    sprint_max = max(int(median.sprints)* 3,safety.sprints * 1.1)
 
     # Plot histogram and smooth curve
     fig, ax = plt.subplots()
-    ax.set_xlim(0, max)
-    ax.hist(simulation_results, bins=500, range=(0, max), density=True, alpha=0.3, color='blue', edgecolor='white', label='見積り')
+    ax.set_xlim(0, sprint_max)
+    ax.hist(simulation_results, bins=500, range=(0, sprint_max), density=True, alpha=0.3, color='blue', edgecolor='white', label='見積り')
 
-    for perc, value in zip([50, 60, 80, 90], percentiles):
-        ax.axvline(value, color=percentiles_names[perc]["color"], linestyle="-", linewidth=1.5, label=f"{percentiles_names[perc]['name']}")
-
+    for perc in deadlines:
+        ax.axvline(perc.sprints, color=perc.color, linestyle="-", linewidth=1.5, label=f"{perc.name} ({perc.sprints:.1f}スプリント)")   
+    
+    if end_date:
+        diff_days = (end_date - start_date).days
+        sprints = diff_days / sprint_duration
+        # 何パーセントで終了するかを逆算する
+        finish_rate = np.searchsorted(np.sort(simulation_results), sprints) / len(simulation_results) * 100
+        ax.axvline(sprints, color="black", linestyle="--", linewidth=1.5, label=f"終了日予定 ({sprints:.1f}スプリント 終了確率{finish_rate:.1f}%)")
+    
     ax.set_title("プロジェクト終了シミュレーション")
     ax.set_xlabel("スプリント数")
     ax.set_ylabel("確率密度")
@@ -70,17 +94,20 @@ def main():
     # Display plot in Streamlit
     st.pyplot(fig)
 
-    
-    median = finish_date(start_date,np.percentile(simulation_results, 50), sprint_duration)
-    commitment = finish_date(start_date,np.percentile(simulation_results, 60), sprint_duration)
-    business_target = finish_date(start_date,np.percentile(simulation_results, 80), sprint_duration)
-    safety = finish_date(start_date,np.percentile(simulation_results, 90), sprint_duration)
-    
+
+
+    # スプリント数を日付に変換
+    median_date = median.finish_date()
+    commitment_date = commitment.finish_date()
+    business_target_date = business_target.finish_date()
+    safety_date = safety.finish_date()
+
 
     # データを辞書として準備
     data = {
         "指標": ["中央値", "コミットメットライン(60%tile)", "ビジネスターゲットライン(80%tile)", "安全ライン(90%tile)"],
-        "日付": [f"{median:%Y/%m/%d}", f"{commitment:%Y/%m/%d}", f"{business_target:%Y/%m/%d}", f"{safety:%Y/%m/%d}"]
+        "スプリント数": [f"{median.sprints:.1f}", f"{commitment.sprints:.1f}", f"{business_target.sprints:.1f}", f"{safety.sprints:.1f}"],
+        "日付": [f"{median_date:%Y/%m/%d}", f"{commitment_date:%Y/%m/%d}", f"{business_target_date:%Y/%m/%d}", f"{safety_date:%Y/%m/%d}"],
     }
 
     # データフレームを作成
@@ -89,9 +116,6 @@ def main():
     # Streamlitでテーブル表示
     st.table(df.style.hide(axis='index'))
     
-
-def finish_date(start_date, sprint_duration, number_of_sprints):
-    return start_date + pd.DateOffset(days=(sprint_duration * number_of_sprints))
 
 def monte_carlo_simulation(
     story_point: int,
