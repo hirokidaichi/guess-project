@@ -15,7 +15,7 @@ class Percentile:
         self.sprint_duration = sprint_duration
 
     def finish_date(self ):
-        return self.start_date + pd.DateOffset(days=self.percentile * self.sprint_duration)
+        return self.start_date + pd.DateOffset(days=self.sprints * self.sprint_duration)
 
 
 
