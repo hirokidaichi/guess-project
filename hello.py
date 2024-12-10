@@ -1,7 +1,9 @@
 import streamlit as st
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
-import japanize_matplotlib  # noqa 自動的に日本語フォントを設定
+import matplotlib_fontja # noqa 日本語フォント設定
+
 
 
 
@@ -20,10 +22,15 @@ def main():
     velocity_std_dev = st.number_input("ベロシティの標準偏差", min_value=1.0, max_value=50.0, value=10.0, step=1.0)
 
     st.header("スコープクリープ")
-    scope_creep_mean = st.number_input("スコープクリープによる追加ストーリーの増加率 (%/sprint)", min_value=0.0, max_value=10.0, value=2.0, step=1.0)
+    st.markdown("スコープクリープとは、追加のストーリーポイントがスプリントごとにどれだけ増加するかを表します。")
+    scope_creep_mean = st.number_input("スコープクリープによる追加ストーリーの増加率 (%/sprint)", min_value=0.0, max_value=5.0, value=2.0, step=1.0)
     scope_creep_std_dev = st.number_input("スコープクリープの標準偏差 (%/sprint)", min_value=0.0, max_value=5.0, value=1.0, step=0.1)
 
     st.header("設定")
+    # スプリント期間が何日か。
+    sprint_duration = st.number_input("スプリント期間 (日)", min_value=1, max_value=50, value=14, step=1)   
+    # 開始日はいつか。デフォルトは今日
+    start_date = st.date_input("開始日", value=pd.to_datetime('today'), min_value=None, max_value=None)    
     num_simulations = st.number_input("シミュレーション回数", min_value=2000, max_value=5000, value=3000, step=100)
 
     # 設定値の確認
@@ -37,11 +44,11 @@ def main():
         num_simulations=num_simulations,
     )
     percentiles = np.percentile(simulation_results, [50, 60, 80, 90])
-    colors = {
-        50: "red",
-        60: "yellow",
-        80: "cyan",
-        90: "green"
+    percentiles_names = {
+        50: {"color": "red", "name": "中央値"},
+        60: {"color": "orange", "name": "コミットメットライン(60%tile)"},
+        80: {"color": "blue", "name": "ビジネスターゲットライン(80%tile)"},
+        90: {"color": "green", "name": "安全ライン(90%tile)"}
     }
     # Calculate range for x-axis
     mean = np.percentile(simulation_results, 50)
@@ -50,19 +57,41 @@ def main():
     # Plot histogram and smooth curve
     fig, ax = plt.subplots()
     ax.set_xlim(0, max)
-    ax.hist(simulation_results, bins=500, range=(0, max), density=True, alpha=0.3, color='blue', edgecolor='white', label='プロジェクト終了時期の分布')
+    ax.hist(simulation_results, bins=500, range=(0, max), density=True, alpha=0.3, color='blue', edgecolor='white', label='見積り')
 
     for perc, value in zip([50, 60, 80, 90], percentiles):
-        ax.axvline(value, color=colors[perc], linestyle="-", linewidth=1.5, label=f"{perc}%tile: {value:.1f}")
+        ax.axvline(value, color=percentiles_names[perc]["color"], linestyle="-", linewidth=1.5, label=f"{percentiles_names[perc]['name']}")
 
     ax.set_title("プロジェクト終了シミュレーション")
     ax.set_xlabel("スプリント数")
     ax.set_ylabel("確率密度")
-    ax.legend()
+    ax.legend(facecolor='white', framealpha=1)
 
     # Display plot in Streamlit
     st.pyplot(fig)
 
+    
+    median = finish_date(start_date,np.percentile(simulation_results, 50), sprint_duration)
+    commitment = finish_date(start_date,np.percentile(simulation_results, 60), sprint_duration)
+    business_target = finish_date(start_date,np.percentile(simulation_results, 80), sprint_duration)
+    safety = finish_date(start_date,np.percentile(simulation_results, 90), sprint_duration)
+    
+
+    # データを辞書として準備
+    data = {
+        "指標": ["中央値", "コミットメットライン(60%tile)", "ビジネスターゲットライン(80%tile)", "安全ライン(90%tile)"],
+        "日付": [f"{median:%Y/%m/%d}", f"{commitment:%Y/%m/%d}", f"{business_target:%Y/%m/%d}", f"{safety:%Y/%m/%d}"]
+    }
+
+    # データフレームを作成
+    df = pd.DataFrame(data)
+
+    # Streamlitでテーブル表示
+    st.table(df.style.hide(axis='index'))
+    
+
+def finish_date(start_date, sprint_duration, number_of_sprints):
+    return start_date + pd.DateOffset(days=(sprint_duration * number_of_sprints))
 
 def monte_carlo_simulation(
     story_point: int,
@@ -95,10 +124,13 @@ def monte_carlo_simulation(
     # Run simulations
     for _ in range(num_simulations):
         total_tasks = float(story_point)
-        velocity_per_sprint = np.random.normal(velocity_mean, velocity_std_dev)
+        velocity_per_sprint = max(0, np.random.normal(velocity_mean, velocity_std_dev))
         sprints = 0
 
         while total_tasks > 0:
+            if sprints > 200:
+                # Limit the number of sprints to prevent infinite loops
+                break
             if total_tasks <= velocity_per_sprint:
                 # Last sprint - calculate partial sprint
                 sprints += total_tasks / velocity_per_sprint
