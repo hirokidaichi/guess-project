@@ -18,7 +18,33 @@ class Percentile:
     def finish_date(self ):
         return self.start_date + pd.DateOffset(days=self.sprints * self.sprint_duration)
 
-
+checklist = [
+    "プロダクトビジョンが明確に定義されておらず、ROIや価値提供の指標が具体化されていない。",
+    "チームが「なぜこの機能を作るのか」を理解できておらず、プロダクトゴールとの紐付けが不明確である。",
+    "デイリースクラムが形骸化しており、impedimentsの共有や解決が適切に行われていない。",
+    "レトロスペクティブで特定された問題（例：テスト自動化の不足、チーム間連携の課題）に対する改善アクションが実行されていない。",
+    "プロダクトバックログの優先順位付けが不明確で、ビジネス価値やリスクの評価基準が標準化されていない。",
+    "ユーザーストーリーが肥大化しており（2-3日以上の工数）、INVESTの原則に反している。（例：1スプリントで完了できないPBI）",
+    "アクセプタンス基準があいまいで、Definition of Doneが具体的な検証項目まで落とし込めていない。",
+    "CI/CDパイプラインが不安定で、自動テストのカバレッジが不十分である。",
+    "開発環境と本番環境の差異が大きく、環境依存の不具合が頻発している。",
+    "パフォーマンス要件やセキュリティ要件が明確でなく、非機能要件のテスト基準が未確立である。",
+    "運用自動化が不十分で、デプロイやロールバックに手動作業が多く含まれている。",
+    "インシデント対応やエスカレーションフローが標準化されておらず、障害時の対応が属人化している。",
+    "モニタリングとアラート基準が適切に設定されておらず、問題の早期発見が困難である。（例：APM・ログ監視の未導入）",
+    "プロダクトオーナーの権限が不明確で、意思決定プロセスに遅延が発生している。",
+    "ステークホルダーとの定期的なデモやレビューが実施されず、フィードバックループが機能していない。",
+    "業務知識やドメイン用語の共有が不足しており、要件解釈に齟齬が発生している。",
+    "特定の技術スキル（例：セキュリティ、パフォーマンスチューニング）を持つメンバーが不足している。",
+    "チーム間の知識移転が円滑でなく、ナレッジマネジメントが確立されていない。",
+    "メンバーの入れ替わりに対するオンボーディングプロセスが確立されていない。",
+    "スコープ変更や優先度変更の管理プロセスが不明確で、計画の一貫性が保てていない。",
+    "技術的負債の可視化と返済計画が不十分で、保守性の低下が進行している。",
+    "データ移行やシステム統合などの大規模変更に対するリスク管理が不十分である。",
+    "経営層のアジャイル開発への理解が不足しており、従来型のマイルストーン管理が求められている。",
+    "プロジェクトの成功指標が不明確で、ビジネス価値の評価方法が確立されていない。",
+    "アジャイルガバナンスの体制が整備されておらず、組織横断的な調整が困難である。"
+]
 
 
 def create_velocity_sampler(data):
@@ -85,39 +111,54 @@ def guess_velocity_posterior(data):
 def main():
     st.title("アジャイルプロジェクト予測")
 
-    st.write("ベロシティとスコープクリープから終了時期をモンテカルロシミュレーションします")
+    st.write("アジャイルチームのリリース時期をモンテカルロシミュレーションします。")
 
     # シミュレーションパラメータ
     st.header("ストーリーポイント")
-    story_point = st.slider("累計ストーリーポイント", min_value=100, max_value=500, value=300, step=10)
+    st.write("リリースマイルストンまでの合計ストーリーポイントを入力してください。")
+    story_point = st.slider("合計ストーリーポイント", min_value=100, max_value=500, value=300, step=10)
 
     st.header("チーム")
-    st.write("直近のベロシティをカンマ区切りで入力してください。")
-    st.write("入力件数が安定して増える毎にベロシティの安定度が上がります。")
-    # 直近のベロシティをカンマ区切りで入力
+    st.caption("直近のベロシティをカンマ区切りで入力してください。")
+    st.caption("入力件数が安定して増える毎にベロシティの安定度が上がるようにヒューリスティックを設定しています。")
     velocities = st.text_input("直近のベロシティ", "50,55")
     try:
         velocity_list = [int(v) for v in velocities.split(",")]
         if len(velocity_list) < 1:
-            st.error("ベロシティは1回以上のデータが必要です。")
+            st.error("ベロシティは1つ以上のデータが必要です。")
             return 
         if any(v < 0 for v in velocity_list):
-            st.error("ベロシティは0以上でなければなりません。")
+            st.error("ベロシティが負の値になっています。")
             return 
     except ValueError:
-        st.error("ベロシティはカンマ区切りの整数で入力してください。")
+        st.error("ベロシティはカンマ区切りの正の整数で入力してください。")
         return
 
     velocity_sampler = create_velocity_sampler(velocity_list)
     
     st.header("スコープクリープ")
-    st.markdown("スコープクリープとは、追加のストーリーポイントがスプリントごとにどれだけ増加するかを表します。")
-    scope_creep_mean = st.number_input("スコープクリープによる追加ストーリーの増加率 (%/sprint)", min_value=0.0, max_value=10.0, value=2.0, step=1.0)
-    scope_creep_std_dev = st.number_input("スコープクリープの標準偏差 (%/sprint)", min_value=0.0, max_value=5.0, value=1.0, step=0.1)
+    st.markdown("現在の合計ストーリーに潜在するリスクが大きい場合は大きい値を設定してください")
+    if not st.checkbox("リスクをチェックリストから判断する"):
+        scope_creep_mean = st.number_input("スコープクリープによる追加ストーリーの増加率 (%/sprint)", min_value=0.0, max_value=10.0, value=2.0, step=0.5)
+        scope_creep_std_dev = scope_creep_mean
+    else:
+        st.markdown("スコープクリープの数値を推定するために、以下のチェックリストから該当する項目を選択してください。")
+        
+        selected_checklist = []
+        for item in checklist:
+            if st.checkbox(item):
+                selected_checklist.append(item)
+        scope_creep_mean = 0
+        scope_creep_std_dev = 0
+        if selected_checklist:
+            scope_creep_mean = len(selected_checklist) * 0.5
+            scope_creep_std_dev = len(selected_checklist) * 0.5
 
     st.header("設定")
     # スプリント期間が何日か。
-    sprint_duration = st.number_input("スプリント期間 (日)", min_value=1, max_value=50, value=14, step=1)   
+    sprint_duration_options = {"1週間": 7, "2週間": 14, "4週間": 28, "1ヶ月": 30, "2ヶ月": 60}
+    sprint_duration_label = st.selectbox("スプリント期間", list(sprint_duration_options.keys()), index=1)
+    sprint_duration = sprint_duration_options[sprint_duration_label]
     # 開始日はいつか。デフォルトは今日
     start_date = st.date_input("開始日", value=pd.to_datetime('today'), min_value=None, max_value=None)
     # 終了したい日付を指定する
@@ -163,7 +204,7 @@ def main():
         finish_rate = np.searchsorted(np.sort(simulation_results), sprints) / len(simulation_results) * 100
         ax.axvline(sprints, color="black", linestyle="--", linewidth=1.5, label=f"終了日予定 ({sprints:.1f}スプリント 終了確率{finish_rate:.1f}%)")
     
-    ax.set_title("スプリント数の確率分布")
+    ax.set_title("完了スプリント数の確率分布")
     ax.set_xlabel("スプリント数")
     ax.set_ylabel("確率密度")
     ax.legend(facecolor='white', framealpha=1, loc='upper right', fontsize='small')
