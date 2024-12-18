@@ -63,7 +63,7 @@ def create_velocity_sampler(data):
     mean = np.mean(data)
     # std = mean * 0.8
     # pre = np.random.normal(mean, std, 10)
-    data = np.append([mean*0.5,mean*1.5],data)
+    data = np.append([mean/1.5,mean*1.5],data)
     n = len(data)
     mean = np.mean(data)
     std = np.std(data, ddof=1)
@@ -110,17 +110,15 @@ def guess_velocity_posterior(data):
 
 def main():
     st.title("アジャイルプロジェクト予測")
-
     st.write("アジャイルチームのリリース時期をモンテカルロシミュレーションします。")
 
     # シミュレーションパラメータ
     st.header("ストーリーポイント")
-    st.write("リリースマイルストンまでの合計ストーリーポイントを入力してください。")
+    st.caption("リリースマイルストンまでの合計ストーリーポイントを入力してください。")
     story_point = st.slider("合計ストーリーポイント", min_value=100, max_value=500, value=300, step=10)
 
     st.header("チーム")
-    st.caption("直近のベロシティをカンマ区切りで入力してください。")
-    st.caption("入力件数が安定して増える毎にベロシティの安定度が上がるようにヒューリスティックを設定しています。")
+    st.caption("直近のベロシティをカンマ区切りで入力してください。入力件数が安定して増える毎にベロシティの安定度が上がるようにヒューリスティックを設定しています。")
     velocities = st.text_input("直近のベロシティ", "50,55")
     try:
         velocity_list = [int(v) for v in velocities.split(",")]
@@ -137,12 +135,12 @@ def main():
     velocity_sampler = create_velocity_sampler(velocity_list)
     
     st.header("スコープクリープ")
-    st.markdown("現在の合計ストーリーに潜在するリスクが大きい場合は大きい値を設定してください")
+    st.caption("現在の合計ストーリーに潜在するリスクが大きい場合は大きい値を設定してください")
     if not st.checkbox("リスクをチェックリストから判断する"):
         scope_creep_mean = st.number_input("スコープクリープによる追加ストーリーの増加率 (%/sprint)", min_value=0.0, max_value=10.0, value=2.0, step=0.5)
         scope_creep_std_dev = scope_creep_mean
     else:
-        st.markdown("スコープクリープの数値を推定するために、以下のチェックリストから該当する項目を選択してください。")
+        st.caption("スコープクリープの数値を推定するために、以下のチェックリストから該当する項目を選択してください。")
         
         selected_checklist = []
         for item in checklist:
