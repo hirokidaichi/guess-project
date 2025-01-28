@@ -1,8 +1,23 @@
-import streamlit as st
+from pathlib import Path
+
+import matplotlib.font_manager as fm
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib_fontja # noqa 日本語フォント設定
+import streamlit as st
+
+
+def setup_japanese_font() -> fm.FontProperties:
+    """日本語フォントを設定します。"""
+    try:
+        fpath = Path.cwd() / 'NOTO_SANS_JP' / 'NotoSansJP-Regular.otf'
+        if not fpath.exists():
+            st.error(f'フォントファイルが見つかりません: {fpath}')
+            return fm.FontProperties()
+        return fm.FontProperties(fname=str(fpath))
+    except Exception as e:
+        st.error(f'フォント設定エラー: {e!s}')
+        return fm.FontProperties()
 
 # Percentile 型のデータを作成
 class Percentile:
@@ -73,6 +88,8 @@ def main():
 
     # Plot histogram and smooth curve
     fig, ax = plt.subplots()
+    font_prop = setup_japanese_font()
+    
     ax.set_xlim(0, sprint_max)
     ax.hist(simulation_results, bins=500, range=(0, sprint_max), density=True, alpha=0.3, color='blue', edgecolor='white', label='見積り')
 
@@ -86,10 +103,10 @@ def main():
         finish_rate = np.searchsorted(np.sort(simulation_results), sprints) / len(simulation_results) * 100
         ax.axvline(sprints, color="black", linestyle="--", linewidth=1.5, label=f"終了日予定 ({sprints:.1f}スプリント 終了確率{finish_rate:.1f}%)")
     
-    ax.set_title("プロジェクト終了シミュレーション")
-    ax.set_xlabel("スプリント数")
-    ax.set_ylabel("確率密度")
-    ax.legend(facecolor='white', framealpha=1)
+    ax.set_title("プロジェクト終了シミュレーション", fontproperties=font_prop)
+    ax.set_xlabel("スプリント数", fontproperties=font_prop)
+    ax.set_ylabel("確率密度", fontproperties=font_prop)
+    ax.legend(facecolor='white', framealpha=1, prop=font_prop)
 
     # Display plot in Streamlit
     st.pyplot(fig)
