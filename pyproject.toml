@@ -18,7 +18,7 @@ dev = [
     "pytest>=8.0.0",
     "pytest-cov>=4.1.0",
     "ruff>=0.3.0",
-    "mypy>=1.9.0",
+    "pyright>=1.1.350",
 ]
 
 [tool.ruff]
@@ -41,9 +41,18 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = "-ra -q --cov=src"
 
-[tool.mypy]
-python_version = "3.12"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
-check_untyped_defs = true
+[tool.pyright]
+include = ["src", "tests"]
+exclude = [
+    "**/__pycache__",
+    ".venv",
+]
+pythonVersion = "3.12"
+typeCheckingMode = "strict"
+reportMissingImports = true
+reportMissingTypeStubs = false
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.392.post0",
+]
