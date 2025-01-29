@@ -8,8 +8,8 @@ import streamlit as st
 import yaml
 from matplotlib import font_manager as fm
 
-fpath = os.path.join(os.getcwd(), "NOTO_SANS_JP/NotoSansJP-Regular.otf")
-prop = fm.FontProperties(fname=fpath)
+FONT_PATH = os.path.join(os.getcwd(), "NOTO_SANS_JP/NotoSansJP-Regular.otf")
+FONT_PROP = fm.FontProperties(fname=FONT_PATH)
 
 
 def load_checklist():
@@ -265,13 +265,16 @@ def main():
             label=f"終了日予定 ({sprints:.1f}スプリント 終了確率{finish_rate:.1f}%)",
         )
 
-    ax.set_title("完了スプリント数の確率分布", fontproperties=prop)
-    ax.set_xlabel("スプリント数", fontproperties=prop)
-    ax.set_ylabel("確率密度", fontproperties=prop)
+    ax.set_title("完了スプリント数の確率分布", fontproperties=FONT_PROP)
+    ax.set_xlabel("スプリント数", fontproperties=FONT_PROP)
+    ax.set_ylabel("確率密度", fontproperties=FONT_PROP)
     ax.legend(
-        facecolor="white", framealpha=1, loc="upper right", fontsize="small", prop=prop
+        facecolor="white",
+        framealpha=1,
+        loc="upper right",
+        fontsize="small",
+        prop=FONT_PROP
     )
-
     # Display plot in Streamlit
     st.pyplot(fig)
 
