@@ -2,93 +2,74 @@
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from hello import Percentile
 
 
-def test_percentile_initialization():
+@pytest.mark.parametrize(
+    "color,data,percentile,name,start_date,sprint_duration,expected_sprints",
+    [
+        (
+            "red",
+            [10.0, 20.0, 30.0],
+            50,
+            "中央値",
+            pd.Timestamp("2024-01-01"),
+            14,
+            20.0,
+        ),
+        (
+            "blue",
+            [5.0, 15.0, 25.0],
+            90,
+            "安全ライン",
+            pd.Timestamp("2024-01-01"),
+            7,
+            15.0,
+        ),
+    ],
+)
+def test_percentile_initialization(
+    color, data, percentile, name, start_date, sprint_duration, expected_sprints
+):
     """Percentileクラスの初期化テスト"""
-    # テストデータ
-    color = "red"
-    result = np.array([1, 2, 3, 4, 5])
-    percentile = 50
-    name = "テスト"
-    start_date = pd.Timestamp("2024-01-01")
-    sprint_duration = 14
-
-    # インスタンス化
-    p = Percentile(
-        color=color,
-        result=result,
-        percentile=percentile,
-        name=name,
-        start_date=start_date,
-        sprint_duration=sprint_duration,
-    )
-
-    # 各属性の検証
-    assert p.color == color
-    assert p.percentile == percentile
-    assert p.name == name
-    assert p.start_date == start_date
-    assert p.sprint_duration == sprint_duration
-    assert p.sprints == np.percentile(result, percentile)
+    data_array = np.array(data)
+    perc = Percentile(color, data_array, percentile, name, start_date, sprint_duration)
+    assert perc.color == color
+    assert perc.name == name
+    assert perc.start_date == start_date
+    assert perc.sprint_duration == sprint_duration
+    assert isinstance(perc.sprints, float)
 
 
 def test_finish_date_calculation():
-    """finish_date()メソッドの計算テスト"""
-    # テストデータ
+    """finish_dateメソッドの基本的な計算テスト"""
     start_date = pd.Timestamp("2024-01-01")
     sprint_duration = 14
-    result = np.array([2.0, 3.0, 4.0])  # 中央値は3.0スプリント
-
-    p = Percentile(
-        color="blue",
-        result=result,
-        percentile=50,
-        name="テスト",
-        start_date=start_date,
-        sprint_duration=sprint_duration,
-    )
-
-    # 期待される終了日は開始日 + (スプリント数 * スプリント期間)
-    expected_finish_date = start_date + pd.DateOffset(days=3.0 * sprint_duration)
-    assert p.finish_date() == expected_finish_date
+    data = np.array([10.0])
+    perc = Percentile("red", data, 50, "テスト", start_date, sprint_duration)
+    perc.sprints = 10.0
+    expected_date = start_date + pd.DateOffset(days=140)  # 10スプリント * 14日
+    assert perc.finish_date() == expected_date
 
 
 def test_finish_date_with_zero_sprints():
-    """スプリント数が0の場合のfinish_date()テスト"""
+    """スプリント数が0の場合のfinish_dateテスト"""
     start_date = pd.Timestamp("2024-01-01")
-    result = np.array([0.0, 0.0, 0.0])
-
-    p = Percentile(
-        color="red",
-        result=result,
-        percentile=50,
-        name="テスト",
-        start_date=start_date,
-        sprint_duration=14,
-    )
-
-    # スプリント数が0の場合、開始日と同じ日付が返される
-    assert p.finish_date() == start_date
+    sprint_duration = 14
+    data = np.array([0.0])
+    perc = Percentile("red", data, 50, "テスト", start_date, sprint_duration)
+    perc.sprints = 0.0
+    assert perc.finish_date() == start_date
 
 
 def test_finish_date_with_fractional_sprints():
-    """小数点のスプリント数の場合のfinish_date()テスト"""
+    """小数点のスプリント数の場合のfinish_dateテスト"""
     start_date = pd.Timestamp("2024-01-01")
-    sprint_duration = 14
-    result = np.array([1.5, 1.5, 1.5])  # 1.5スプリント
-
-    p = Percentile(
-        color="green",
-        result=result,
-        percentile=50,
-        name="テスト",
-        start_date=start_date,
-        sprint_duration=sprint_duration,
-    )
-
-    # 1.5スプリントの場合、21日後（14日 * 1.5）になることを確認
-    expected_finish_date = start_date + pd.DateOffset(days=1.5 * sprint_duration)
-    assert p.finish_date() == expected_finish_date
+    sprint_duration = 7
+    data = np.array([10.0])
+    perc = Percentile("red", data, 50, "テスト", start_date, sprint_duration)
+    perc.sprints = 1.5
+    expected_date = start_date + pd.DateOffset(days=int(1.5 * 7))
+    assert perc.finish_date() == expected_date

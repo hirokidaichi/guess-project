@@ -39,7 +39,11 @@ unfixable = []
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts = "-ra -q --cov=src"
+addopts = [
+    "--cov=hello",
+    "--cov-report=term-missing",
+    "--no-cov-on-fail",
+]
 
 [tool.pyright]
 include = ["src", "tests"]
@@ -58,4 +62,18 @@ dev = [
     "pytest>=8.3.4",
     "pytest-cov>=6.0.0",
     "pytest-mock>=3.14.0",
+]
+
+[tool.coverage.run]
+source = ["hello"]
+omit = ["*/__init__.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "pass",
 ]

@@ -52,22 +52,33 @@ def create_velocity_sampler(data: List[float]) -> Callable[[int], np.ndarray]:
 
     Returns:
     - random_samples: numpy array of sampled true means
-    """
 
-    data = np.array(data)
+    Raises:
+    - ValueError: If data is empty or None
+    """
+    if not data:
+        raise ValueError("データが空です。少なくとも1つのベロシティデータが必要です。")
+
+    data = np.array(data, dtype=float)  # 明示的に型を指定
+    if len(data) == 0:
+        raise ValueError("データが空です。少なくとも1つのベロシティデータが必要です。")
+
     mean = np.mean(data)
-    # std = mean * 0.8
-    # pre = np.random.normal(mean, std, 10)
-    data = np.append([mean / 1.5, mean * 1.5], data)
+    # データが1つの場合は、平均の±50%の範囲でデータを追加
+    if len(data) == 1:
+        data = np.array([mean * 0.5, mean, mean * 1.5])
+    else:
+        data = np.append([mean / 1.5, mean * 1.5], data)
+
     n = len(data)
     mean = np.mean(data)
-    std = np.std(data, ddof=1)
-    sem = std / np.sqrt(n)
-    df = n - 1
-    t_dist = stats.t(df)
+    std = np.std(data, ddof=1) if n > 1 else mean * 0.1
+    sem = std / np.sqrt(max(1, n))  # nが0になることを防ぐ
+    df = max(1, n - 1)  # 自由度が0以下にならないようにする
 
     def sampler(num_samples: int = 1000) -> np.ndarray:
-        return mean + sem * t_dist.rvs(size=num_samples)
+        t_dist = stats.t.rvs(df=df, size=num_samples)
+        return mean + sem * t_dist
 
     return sampler
 
@@ -84,20 +95,34 @@ def guess_velocity_posterior(data: List[float]) -> Callable[[int], np.ndarray]:
 
     Returns:
     - posterior_samples: numpy array of sampled posterior true means
+
+    Raises:
+    - ValueError: If data is empty or None
     """
+    if not data:
+        raise ValueError("データが空です。少なくとも1つのベロシティデータが必要です。")
 
-    data = np.array(data)
+    data = np.array(data, dtype=float)  # 明示的に型を指定
+    if len(data) == 0:
+        raise ValueError("データが空です。少なくとも1つのベロシティデータが必要です。")
+
     n = len(data)
-    prior_mean = np.mean(data)
-    prior_std = prior_mean
-    sample_mean = np.mean(data)
-    sample_std = np.std(data, ddof=1)
-    sem = sample_std / np.sqrt(n)
+    # データが1つの場合は、そのデータを中心に±50%の範囲でデータを追加
+    if n == 1:
+        mean_value = data[0]
+        data = np.array([mean_value * 0.5, mean_value, mean_value * 1.5])
+        n = len(data)
 
-    # Update posterior parameters
-    posterior_variance = 1 / (1 / prior_std**2 + n / sem**2)
+    prior_mean = np.mean(data)
+    prior_std = max(prior_mean * 0.1, 1.0)  # 最小値を1.0に設定
+    sample_mean = np.mean(data)
+    sample_std = np.std(data, ddof=1) if n > 1 else prior_mean * 0.1
+    sem = sample_std / np.sqrt(max(1, n))  # nが0になることを防ぐ
+
+    # Update posterior parameters with safeguards against division by zero
+    posterior_variance = 1.0 / (1.0 / prior_std**2 + n / max(sample_std**2, 1e-10))
     posterior_mean = posterior_variance * (
-        prior_mean / prior_std**2 + n * sample_mean / sem**2
+        prior_mean / prior_std**2 + n * sample_mean / max(sample_std**2, 1e-10)
     )
     posterior_std = np.sqrt(posterior_variance)
     st.write(f"post mean: {posterior_mean:.2f}, Post std: {posterior_std:.2f}")
