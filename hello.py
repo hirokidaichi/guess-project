@@ -1,4 +1,5 @@
 import os
+from typing import Callable, List
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,7 +13,7 @@ FONT_PATH = os.path.join(os.getcwd(), "NOTO_SANS_JP/NotoSansJP-Regular.otf")
 FONT_PROP = fm.FontProperties(fname=FONT_PATH)
 
 
-def load_checklist():
+def load_checklist() -> List[str]:
     """チェックリストをYAMLファイルから読み込む"""
     with open("checklist.yaml", "r", encoding="utf-8") as f:
         data = yaml.safe_load(f)
@@ -21,7 +22,15 @@ def load_checklist():
 
 # Percentile 型のデータを作成
 class Percentile:
-    def __init__(self, color, result, percentile, name, start_date, sprint_duration):
+    def __init__(
+        self,
+        color: str,
+        result: np.ndarray,
+        percentile: float,
+        name: str,
+        start_date: pd.Timestamp,
+        sprint_duration: int,
+    ) -> None:
         self.start_date = start_date
         self.color = color
         self.sprints = np.percentile(result, percentile)
@@ -29,11 +38,11 @@ class Percentile:
         self.name = name
         self.sprint_duration = sprint_duration
 
-    def finish_date(self):
+    def finish_date(self) -> pd.Timestamp:
         return self.start_date + pd.DateOffset(days=self.sprints * self.sprint_duration)
 
 
-def create_velocity_sampler(data):
+def create_velocity_sampler(data: List[float]) -> Callable[[int], np.ndarray]:
     """
     Generate random samples for the true mean based on a t-distribution.
 
@@ -57,13 +66,13 @@ def create_velocity_sampler(data):
     df = n - 1
     t_dist = stats.t(df)
 
-    def sampler(num_samples=1000):
+    def sampler(num_samples: int = 1000) -> np.ndarray:
         return mean + sem * t_dist.rvs(size=num_samples)
 
     return sampler
 
 
-def guess_velocity_posterior(data):
+def guess_velocity_posterior(data: List[float]) -> Callable[[int], np.ndarray]:
     """
     Generate the posterior distribution of the true mean using Bayes' theorem.
 
@@ -93,13 +102,13 @@ def guess_velocity_posterior(data):
     posterior_std = np.sqrt(posterior_variance)
     st.write(f"post mean: {posterior_mean:.2f}, Post std: {posterior_std:.2f}")
 
-    def velocity_sampler(num_samples=1000):
+    def velocity_sampler(num_samples: int = 1000) -> np.ndarray:
         return np.random.normal(posterior_mean, posterior_std, num_samples)
 
     return velocity_sampler
 
 
-def main():
+def main() -> None:
     st.title("アジャイルプロジェクト予測")
     st.write("アジャイルチームのリリース時期をモンテカルロシミュレーションします。")
 
@@ -273,7 +282,7 @@ def main():
         framealpha=1,
         loc="upper right",
         fontsize="small",
-        prop=FONT_PROP
+        prop=FONT_PROP,
     )
     # Display plot in Streamlit
     st.pyplot(fig)
@@ -315,7 +324,7 @@ def main():
 
 def monte_carlo_simulation(
     story_point: int,
-    velocity_sampler: callable,
+    velocity_sampler: Callable[[int], np.ndarray],
     scope_creep_mean: float,
     scope_creep_std_dev: float,
     num_simulations: int,
