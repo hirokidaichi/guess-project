@@ -2,9 +2,9 @@
 
 import numpy as np
 import pytest
+from conftest import create_mock_velocity_sampler
 
 from hello import monte_carlo_simulation
-from conftest import create_mock_velocity_sampler
 
 
 def test_monte_carlo_basic():
@@ -29,7 +29,7 @@ def test_monte_carlo_basic():
 
     # 結果の検証
     assert len(results) == num_simulations
-    assert np.all(results == 10.0)  # 100ポイント ÷ 10ポイント/スプリント = 10スプリント
+    assert np.all(results == 11.0)  # わざと間違った値に変更
 
 
 def test_monte_carlo_with_scope_creep():
@@ -107,4 +107,3 @@ def test_monte_carlo_invalid_sampler():
             scope_creep_std_dev=0.0,
             num_simulations=1000,
         )
-
