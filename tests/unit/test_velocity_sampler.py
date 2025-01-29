@@ -6,10 +6,10 @@ import pytest
 from hello import create_velocity_sampler
 
 
-def test_velocity_sampler_basic():
+def test_velocity_sampler_basic(sample_velocity_data):
     """基本的なサンプリング機能のテスト"""
     # テストデータ
-    data = [10.0, 12.0, 11.0, 13.0, 9.0]  # 平均11.0
+    data = sample_velocity_data  # 平均11.0
     sampler = create_velocity_sampler(data)
 
     # サンプリング結果の検証
@@ -36,9 +36,9 @@ def test_velocity_sampler_single_value():
     assert not np.all(samples == samples[0])  # すべての値が同じではないことを確認
 
 
-def test_velocity_sampler_statistical_properties():
+def test_velocity_sampler_statistical_properties(consistent_velocity_data):
     """統計的な性質の詳細なテスト"""
-    data = [10.0, 10.0, 10.0, 10.0, 10.0]  # 平均10.0の安定したデータ
+    data = consistent_velocity_data  # ほぼ10.0の安定したデータ
     sampler = create_velocity_sampler(data)
 
     # 大量のサンプルを生成
@@ -46,7 +46,7 @@ def test_velocity_sampler_statistical_properties():
 
     # 平均値の検証（95%信頼区間内に収まることを確認）
     sample_mean = np.mean(samples)
-    assert 9.0 <= sample_mean <= 11.0
+    assert 9.5 <= sample_mean <= 10.5  # 平均は10.0付近
 
     # t分布に基づくサンプリングであることを確認
     # 正規性の検定は行わない（t分布を使用しているため）

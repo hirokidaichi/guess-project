@@ -4,15 +4,7 @@ import numpy as np
 import pytest
 
 from hello import monte_carlo_simulation
-
-
-def create_mock_velocity_sampler(fixed_velocity):
-    """固定値を返すモックサンプラーを作成"""
-
-    def mock_sampler(num_samples):
-        return np.full(num_samples, fixed_velocity)
-
-    return mock_sampler
+from conftest import create_mock_velocity_sampler
 
 
 def test_monte_carlo_basic():
