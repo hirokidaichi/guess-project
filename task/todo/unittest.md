@@ -48,6 +48,17 @@
 - [ ] GitHub Actionsでのテスト自動実行の設定
 - [ ] テストカバレッジの計測と可視化
 
+## 4. テストの改善
+- [ ] xfailの解消
+  - [ ] test_velocity_posterior_empty_input
+  - [ ] test_velocity_sampler_empty_input
+- [ ] 警告（alert）の解消
+  - [ ] "Mean of empty slice"の警告
+  - [ ] "invalid value encountered in scalar divide"の警告
+  - [ ] "Degrees of freedom <= 0 for slice"の警告
+  - [ ] "Module src was never imported"の警告
+  - [ ] "No data was collected"の警告
+
 ## 注意点
 - テストの追加時にhello.pyの既存コードは最小限の変更に留める
 - 各テストは独立して実行可能にする
