@@ -29,7 +29,7 @@ def test_monte_carlo_basic():
 
     # 結果の検証
     assert len(results) == num_simulations
-    assert np.all(results == 11.0)  # わざと間違った値に変更
+    assert np.all(results == 10.0)  # 100ポイント ÷ 10ポイント/スプリント = 10スプリント
 
 
 def test_monte_carlo_with_scope_creep():
